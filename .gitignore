@@ -1,0 +1,9 @@
+src/.DS_Store
+archive/
+*.d
+*.o
+makefile
+.vscode/*
+testing/*
+z-release_version/*
+.DS_Store
