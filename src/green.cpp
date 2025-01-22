@@ -266,64 +266,21 @@ void Green::read_edmft_matrix(const Str& file) {
             Real omg;
             MatReal re(norbs, norbs, 0.);
             MatReal im(norbs, norbs, 0.);
-            ifs >> omg;
-            VecReal re_temp(norbs*(norbs+1)/2), im_temp(norbs*(norbs+1)/2);
-            for_Int(m, 0, norbs*(norbs+1)/2) {
-                ifs >> re_temp[m];
-                ifs >> im_temp[m];
-            }
-            for_Int(m, 0, norbs) {
-                re[m][m] = re_temp[m];
-                im[m][m] = im_temp[m];
-            }
-            g[n] = cmplx(re, im);
-        }
-
-        if (!ifs) {
-            ERR(STR("read-in error with ") + NAV(file));
-        }
-    }
-    ifs.close();
-}
-
-
-void Green::read_edmft_matrix(const Str& file) {
-    IFS ifs(file);
-    if (!ifs) {
-        WRN(STR("file opening failed with ") + NAV(file));
-    } else {
-        for_Int(n, 0, nomgs) {
-            Real omg;
-            MatReal re(norbs, norbs, 0.);
-            MatReal im(norbs, norbs, 0.);
 
             // 1) Read frequency point
             ifs >> omg;
 
-            // 2) Prepare to read norbs*(norbs+1)/2 complex numbers for upper triangle (including diagonal)
-            VecReal re_temp(norbs*(norbs+1)/2), im_temp(norbs*(norbs+1)/2);
-            for_Int(m, 0, norbs*(norbs+1)/2) {
-                ifs >> re_temp[m];
-                ifs >> im_temp[m];
-            }
-
-            // 3) Write upper triangle data to re/im matrices and fill lower triangle using Hermitian property
-            int idx = 0;
-            for (int i = 0; i < norbs; i++) {
-                for (int j = i; j < norbs; j++) {
-                    // Upper triangle part (including diagonal)
-                    re[i][j] = re_temp[idx];
-                    im[i][j] = im_temp[idx];
-                    // Hermitian => lower triangle (j,i) has same real part, opposite imaginary part
-                    if (i != j) {
-                        re[j][i] = re_temp[idx];
-                        im[j][i] = -im_temp[idx];
-                    }
-                    ++idx;
+            // 2) Read all matrix elements row by row
+            for_Int(i, 0, norbs) {
+                for_Int(j, 0, norbs) {
+                    Real re_val, im_val;
+                    ifs >> re_val >> im_val;
+                    re[i][j] = re_val;
+                    im[i][j] = im_val;
                 }
             }
 
-            // 4) Store in g[n]
+            // 3) Store in g[n]
             g[n] = cmplx(re, im);
         }
 
@@ -334,6 +291,26 @@ void Green::read_edmft_matrix(const Str& file) {
     ifs.close();
 }
 
+void Green::write_edmft_matrix(const Str& file) const {
+    OFS ofs;
+    ofs.open(file);
+    ofs << iofmt("sci");
+    for_Int(n, 0, nomgs) {
+        // Write frequency point
+        ofs << setw(w_Real) << omg(n);
+
+        // Write all matrix elements row by row
+        for_Int(i, 0, norbs) {
+            for_Int(j, 0, norbs) {
+                ofs << "  " << setw(w_Real) << real(g[n][i][j]);
+                ofs << "  " << setw(w_Real) << imag(g[n][i][j]);
+            }
+        }
+        
+        // if (n==0) WRN(NAV1(g[n]));
+        ofs << endl;
+    }
+}
 
 void Green::write_zen(const Str& green_name, Int nspin, Int iter_cnt) const {
 	OFS ofs;

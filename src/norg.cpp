@@ -703,11 +703,11 @@ void NORG::write_state_info(Int iter_cnt) const {
 
 VecReal NORG::write_impurtiy_occupation(Int iter_cnt, const Str& phy_name) const {
 	using namespace std;
-	VecReal prtil(p.norg_sets, 0);				// particals.
+	VecReal prtil(p.norg_sets*p.nband, 0);				// particals.
 	MatReal dcoo, fluctuation_correlation_function(p.norbs, p.norbs, 0.);
 	MatReal fulldcoo;
 	if(!(p.if_norg_imp)) {
-		dcoo = oneedm.find_imp_double_occupancy();
+		// dcoo = oneedm.find_imp_double_occupancy();
 		// fulldcoo = oneedm.find_full_double_occupancy();
 	} 
 	if (mm) {
@@ -718,21 +718,20 @@ VecReal NORG::write_impurtiy_occupation(Int iter_cnt, const Str& phy_name) const
 			else ofs.open(phy_name + "nmat.out");
 		}
 		if (iter_cnt > 0) ofs.open(iox + "zic" + prefill0(iter_cnt, 3) + ".nmat.txt");
-		if (p.if_norg_imp) {
+		if (p.if_norg_imp) { // This case has not been tested yet
 			VecReal counter(3);
 			MatReal dm_origional = see_MatReal(uormat).ct() * see_MatReal(oneedm.dm) * see_MatReal(uormat);
 			// WRN(NAV(dm_origional));
 			prtil = dm_origional.diagonal().mat(p.norg_sets, p.nO2sets[0]).tr()[0];
 
 			ofs << "#   < n_i >   data:" << endl;
-			for_Int(orb_i, 0, p.norbs) {
+			for_Int(orb_i, 0, p.norbs) { 
 				ofs << iofmt();
-				std::string temp = (orb_i % 2) == 0 ? STR(Int(orb_i / 2) + 1) + "up" : STR(Int(orb_i / 2) + 1) + "dn";
+				std::string temp = (orb_i < p.nband) ? "up" + STR(orb_i + 1) : "dw" + STR(orb_i - p.nband + 1);
 				ofs << setw(6) << temp << setw(p_Real) << prtil[orb_i] << endl;
+				counter[0] = SUM_0toX(prtil, p.nband);
+				counter[1] = SUM(prtil) - SUM_0toX(prtil, p.nband);
 			}
-			counter[0] = SUM(prtil.mat(p.nband, 2).tr()[0]);
-			counter[1] = SUM(prtil.mat(p.nband, 2).tr()[1]);
-
 			counter[2] = counter[0] + counter[1];
 			ofs << setw(6) << "sup" << setw(p_Real) << counter[0] << endl;
 			ofs << setw(6) << "sdn" << setw(p_Real) << counter[1] << endl;
@@ -745,17 +744,18 @@ VecReal NORG::write_impurtiy_occupation(Int iter_cnt, const Str& phy_name) const
 			ofs << "#   < n_i >   data:" << endl;
 			for_Int(orb_i, 0, p.norbs) {
 				ofs << iofmt();
-				std::string temp = (orb_i % 2) == 0 ? STR(Int(orb_i / 2) + 1) + "up" : STR(Int(orb_i / 2) + 1) + "dn";
-				prtil[orb_i] = dmtemp[orb_i][0][0];
+				std::string temp = (orb_i < p.nband) ? "up" + STR(orb_i + 1) : "dw" + STR(orb_i - p.nband + 1);
+				prtil[orb_i] = dmtemp[int(orb_i/p.nband)][int(orb_i%p.nband)][int(orb_i%p.nband)];
 				ofs << setw(6) << temp << setw(p_Real) << prtil[orb_i] << endl;
-				(orb_i % 2) == 0 ? counter[0] += dmtemp[orb_i][0][0] : counter[1] += dmtemp[orb_i][0][0];
+				counter[0] = SUM_0toX(prtil, p.nband);
+				counter[1] = SUM(prtil) - SUM_0toX(prtil, p.nband);
 			}
 			counter[2] = counter[0] + counter[1];
 			ofs << setw(6) << "sup" << setw(p_Real) << counter[0] << endl;
 			ofs << setw(6) << "sdn" << setw(p_Real) << counter[1] << endl;
 			ofs << setw(6) << "sum" << setw(p_Real) << counter[2] << endl;
 			MatReal mat_sz(p.nband, p.nband, 0.), mat_ninj(p.nband, p.nband, 0.), mat_FCF_NN(p.nband, p.nband, 0.);
-
+			/*
 			ofs <<"\n\n#   < sz_i sz_j >   data:" ;
 			for_Int(i, 0, p.nband) for_Int(j, 0, p.nband) {
 				mat_sz[i][j] = dcoo[2 * i][2 * j] + dcoo[2 * i + 1][2 * j + 1] - dcoo[2 * i][2 * j + 1] - dcoo[2 * i + 1][2 * j];
@@ -791,6 +791,7 @@ VecReal NORG::write_impurtiy_occupation(Int iter_cnt, const Str& phy_name) const
 			// PIO(NAV(fluctuation_correlation_function))
 
 			ofs.close();
+			*/
 			// */
 		}
 	}

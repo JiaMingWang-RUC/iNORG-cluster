@@ -14,18 +14,17 @@ code developed and maintained by (jmw@ruc.edu.cn, RUC, China) date 2022 - 2024
 
 APIedmft::APIedmft(const MyMpi& mm_i, Prmtr& prmtr_i, const Str& file) : mm(mm_i), p(prmtr_i), num_omg(prmtr_i.num_omg), 
 	ful_pcl_sch(1), iter_count(0), sig_err(0.), n_eles(p.norbs, 0.), fit_err(p.nband, 0.), fit_range (5.0),
-	num_nondegenerate(-1), weight_nooc(5, 1E-4), weight_freze(5, 1E-13), fit_nbaths(p.norg_sets, 0)
+	weight_nooc(5, 1E-4), weight_freze(5, 1E-13), fit_nbaths(p.norg_sets, 0), energy_level(p.norbs, p.norbs, 0.), if_mat_type(0)
 {
 	update(file);
 	Bath bth(mm, p);
-	Impurity imp(mm, p, bth, or_deg_idx);
-	ImGreen hb(p.nband, p);	hb.read_edmft("Delta.inp", or_deg_idx);									if (mm) hb.write_edmft("hb_read.txt", or_deg_idx);
-	if(mm) WRN(NAV(or_deg_idx))
-	bth.bth_read_fvb("ose_hop");	bth.number_bath_fit(hb, or_deg_idx);							if (mm) bth.bth_write_fvb();
+	Impurity imp(mm, p, bth, energy_level);
+	ImGreen hb(p.nband, p);	hb.read_edmft_matrix("Delta.inp");										if (mm) hb.write_edmft_matrix("hb_read.txt");
+	bth.bth_read_fvb("ose_hop");		bth.number_bath_fit(hb);									if (mm) bth.bth_write_fvb();
 	{ mm.barrier(); SLEEP(1); }
 
-	imp.update("eDMFT");																			if (mm) imp.write_H0info(bth, MAX(or_deg_idx));
-	ImGreen hb_imp(p.nband, p);		imp.find_hb(hb_imp); 											if (mm) hb_imp.write_edmft("hb_fit.txt", or_deg_idx);
+	imp.update("mateDMFT");																			if (mm) imp.write_H0info(bth);
+	ImGreen hb_imp(p.nband, p);		imp.find_hb(hb_imp); 											if (mm) hb_imp.write_edmft_matrix("hb_fit.txt");
 	edmft_back_up("read");
 	auto_nooc("ful_pcl_sch", imp);	
 	if(mm) WRN(NAV(p.control_divs));
@@ -35,16 +34,18 @@ APIedmft::APIedmft(const MyMpi& mm_i, Prmtr& prmtr_i, const Str& file) : mm(mm_i
 	norg.up_date_h0_to_solve(imp.impH, 1);															n_eles = norg.write_impurtiy_occupation();
 	// MatReal tmp_e = norg.save_NTR();
 	// MatReal local_multiplets_state = norg.oneedm.local_multiplets_state(norg.oneedm.ground_state);	if (mm)WRN(NAV(local_multiplets_state));
-	edmft_back_up("save");
-	ImGreen g0imp(p.nband, p);	imp.find_g0(g0imp);													if (mm)	g0imp.write_edmft("g0imp.txt", or_deg_idx);
-	ImGreen gfimp(p.nband, p);	norg.get_gimp_eigpairs(gfimp, or_deg_idx);							if (mm) gfimp.write_edmft("Gf.out", or_deg_idx);
+	edmft_back_up("save");//! still need to be checked.
+	ImGreen g0imp(p.nband, p);	imp.find_g0(g0imp);													if (mm)	g0imp.write_edmft_matrix("g0imp.txt");
+	ImGreen gfimp(p.nband, p);	norg.get_g_by_KCV_spup(gfimp);										if (mm) gfimp.write_edmft_matrix("Gf.out");
 	ImGreen seimp(p.nband, p);	seimp = g0imp.inverse() - gfimp.inverse();
 	fit_err = bth.info.tr()[1];
 	{ mm.barrier(); SLEEP(1); }
 	if (mm) {
-		ImGreen last_sig(p.nband, p); 		last_sig.read_edmft("Sig.out", or_deg_idx);				sig_err = seimp.error(last_sig);
-		log("sigerr_update");																		seimp.write_edmft("Sig.out", or_deg_idx);
+		ImGreen last_sig(p.nband, p); 		last_sig.read_edmft_matrix("Sig.out");				sig_err = seimp.error(last_sig);
+		log("sigerr_update");																	seimp.write_edmft_matrix("Sig.out");
 	}
+	/* (Test for cluster DMFT)
+	*/
 	//hold for checking-----------------------------------------------------------------------------------------------------------------------------------
 	/* 
 		// if(mode == "realf_mode"){
@@ -114,9 +115,11 @@ void APIedmft::read_eDMFT(const Str& file) {
 		p.beta = beta;
 		p.eimp.reset(norbs, 0.);
 		// p.eimp =  concat(VecReal(Ed), VecReal(Ed)).mat(2, Ed.size()).tr().vec();
-		or_deg_idx.reset(concat(VecInt(Deg), VecInt(Deg)).mat(2, Deg.size()).tr().vec());
-		for_Int(i, 0, p.eimp.size()) p.eimp[i] =  Ed[or_deg_idx[i] - 1];
-		num_nondegenerate = MAX(or_deg_idx);
+		energy_level.reset(VecReal(Ed).mat(norbs, norbs));
+		// or_deg_idx.reset(concat(VecInt(Deg), VecInt(Deg)).mat(2, Deg.size()).tr().vec());
+		// for_Int(i, 0, p.eimp.size()) p.eimp[i] =  Ed[or_deg_idx[i] - 1];
+
+		// num_nondegenerate = MAX(or_deg_idx);
 		weight_nooc.reset(Vec(weight_noc1));
 		weight_freze.reset(Vec(weight_noc2));
 		restrain = VecInt(restrain_t);
@@ -127,38 +130,10 @@ void APIedmft::read_eDMFT(const Str& file) {
 
 	}
 
-	if (mm) WRN(NAV2(p.eimp, or_deg_idx));
+	// if (mm) WRN(NAV2(p.eimp, or_deg_idx));
 	if (mm) WRN(NAV7(restrain, fit_nbaths, Uc, Jz, p.beta, weight_nooc, weight_freze));
 
 
-	imfrq_hybrid_function.reset(num_omg, num_nondegenerate, 0.);
-
-	/*
-	{// Delta.inp: to get the hyb function.
-		Str hybdata("Delta.inp");
-		IFS ifs(hybdata);
-		if (!ifs) {
-			ERR(STR("file opening failed with ") + NAV(hybdata))
-		}
-		else {
-			for_Int(i, 0, p.nmesh) {
-				Real omg(0.);
-				ifs >> omg;
-				for_Int(m, 0, num_nondegenerate) {
-					Real re(0.), im(0.);
-					ifs >> re;
-					ifs >> im;
-					imfrq_hybrid_function[i][m] = cmplx(re, im);
-					// if (mm) WRN(NAV3(omg, real(imfrq_hybrid_function[i][m]), imag(imfrq_hybrid_function[i][m])));
-				}
-			}
-			if (!ifs) {
-				ERR(STR("read-in error with ") + NAV(file))
-			}
-		}
-		ifs.close();
-	}
-	*/
 }
 
 
@@ -233,7 +208,9 @@ ImGreen APIedmft::fix_se(const ImGreen& se) const{
 void APIedmft::update(const Str& file) {
 	{// modify the parameters from edmft.in
 		read_eDMFT(file);
-		p.U = Uc; p.mu = mu; p.jz = Jz; p.nband = nband; p.norg_sets = p.norbs = norbs;
+		p.U = Uc; p.mu = mu; p.jz = Jz; p.nband = nband; 
+		if(if_mat_type == 0) p.norg_sets = p.norbs = norbs;
+		else p.norg_sets = 2; 
 		p.templet_restrain = restrain;
 		p.project = NAV(nband) + "band";
 		// if(p.if_norg_degenerate == 1) p.bandw = 4 * Uc;
@@ -242,7 +219,7 @@ void APIedmft::update(const Str& file) {
 		p.after_modify_prmtr(fit_nbaths);
 		p.recalc_partical_number(); p.derive();
 		if(mm) WRN(NAV(p.control_divs));
-		p.Uprm = p.U - 2 * p.jz;
+		// p.Uprm = p.U - 2 * p.jz;
 		p.degel = 0;
 		n_eles.reset(norbs, 0); fit_err.reset(nband, 0);
 		// if (mm) p.print();
@@ -282,9 +259,9 @@ void APIedmft::print_log(const Str& lbl, std::ostream& os) const {
     os << setw(3 + 2 * p.nband) << temp;
     
     os << iofmt() << fixed << setprecision(8);
-    for_Int(i, 0, p.nband) {
-        os << "  " << setw(15) << fit_err[or_deg_idx[i * 2] - 1] << "~" << setw(10) << n_eles[i * 2];
-    }
+    // for_Int(i, 0, p.nband) {
+    //     os << "  " << setw(15) << fit_err[or_deg_idx[i * 2] - 1] << "~" << setw(10) << n_eles[i * 2];
+    // }
     
     os << "  " << present();
     os << "  " << lbl << endl;
@@ -306,7 +283,8 @@ void APIedmft::auto_nooc(Str mode, const Impurity& imp) {
 		Int start_idx = 0;
 		controler[0] = p.control_divs[0];
 		if(ful_pcl_sch) {
-			NORG norg(opcler.find_ground_state_partical(imp.impH, or_deg_idx));
+			// NORG norg(opcler.find_ground_state_partical(imp.impH, or_deg_idx));
+			NORG norg(opcler.find_ground_state_partical(imp.impH));
 			uormat = norg.uormat;
 						
 			// Process occupation sets
@@ -344,7 +322,13 @@ void APIedmft::auto_nooc(Str mode, const Impurity& imp) {
 			Int o(0), freze_o(0), e(0), freze_e(0), orb_rep(0), nooc_o(0), nooc_e(0);
 			Int keep_o(0), keep_e(0);
 			for_Int(j, 0, p.norg_sets) { orb_rep = j; if (ordeg[j] == i + 1) break; }
-			o = nppso[orb_rep] - 1; e = p.nI2B[orb_rep] - nppso[orb_rep];
+			o = nppso[orb_rep] - nband; e = p.nI2B[orb_rep] - nppso[orb_rep];
+			if(e < 0) { // Add the problem of particle number selection caused by too many unconstrained baths
+                Int gap = 0 - e;
+                o -= gap;
+                e += gap;
+            }
+			if(mm)WRN(NAV2(o,e));
 			for_Int(j, 0, o) {
 				if (occweights[orb_rep][j] < weight_freze[int(orb_rep/2)]) freze_o++;
 				else if (occweights[orb_rep][j] < weight_nooc[int(orb_rep/2)]) nooc_o++;
@@ -354,7 +338,7 @@ void APIedmft::auto_nooc(Str mode, const Impurity& imp) {
 				else if (occweights[orb_rep][j] < weight_nooc[int(orb_rep/2)]) nooc_e++;
 			}
 			keep_o = o - nooc_o - freze_o; keep_e = e - nooc_e - freze_e;
-			controler[i + 1] = p.if_norg_imp ? VecInt{ freze_o, nooc_o, 1, 1, nooc_e, freze_e } : VecInt{ 1, freze_o, nooc_o, keep_o, 1, keep_e, nooc_e, freze_e };
+			controler[i + 1] = p.if_norg_imp ? VecInt{ freze_o, nooc_o, 1, 1, nooc_e, freze_e } : VecInt{ nband, freze_o, nooc_o, keep_o, nband, keep_e, nooc_e, freze_e };
 		}
 		VecInt DIV_constrain = VecInt{controler[0][p.ndiv/2+1], controler[0][p.ndiv/2+2], controler[0][p.ndiv/2+3]};
 		if (mm) WRN(NAV5(p.if_norg_degenerate, p.nooc_mode, DIV_constrain, weight_nooc, weight_freze)+"   "+present());
@@ -398,6 +382,10 @@ void APIedmft::read_norg_setting(
 				}
 			}
 		}
+		else if (key == "orbital") {
+			iss >> nband;
+			norbs = 2 * nband;
+		}
 		else if (key == "Deg") {
 			char ch;
 			while (iss >> ch && ch != ']') {
@@ -408,11 +396,12 @@ void APIedmft::read_norg_setting(
 					Deg.push_back(value);
 				}
 			}
-			nband = Deg.size();
-			norbs = 2 * nband;
 		}
 		else if (key == "J") {
 			iss >> J;
+		}
+		else if (key == "if_mat_type") {
+			iss >> if_mat_type;
 		}
 		else if (key == "CoulombF") {
 			iss >> CoulombF;
@@ -557,7 +546,7 @@ void APIedmft::edmft_back_up(const Str& status) {
 				iss >> key;
 
 				if (key == "iter_count")			iss >> iter_count;
-				if (key == "npartical")				for_Int(i, 0, p.norbs)		iss >> p.npartical[i];
+				if (key == "npartical")				for_Int(i, 0, p.norg_sets)		iss >> p.npartical[i];
 				// if (key == "ful_pcl_sch")			iss >> ful_pcl_sch;
 				// if (key == "artificial_symm"){
 				// 	artificial_symm.reset(p.norbs, 0);	for_Int(i, 0, p.norbs)	iss >> artificial_symm[i];
@@ -571,8 +560,8 @@ void APIedmft::edmft_back_up(const Str& status) {
 		ofs.open("edmft_back_up");
 		ofs << iofmt("sci");
 
-		ofs << setw(4) << "iter_count";			ofs << setw(4) << (iter_count + 1);											ofs << endl;
-		ofs << setw(4) << "npartical";			for_Int(i, 0, p.norbs)		ofs << setw(4) << p.npartical[i];		ofs << endl;
+		ofs << setw(4) << "iter_count";			ofs << setw(4) << (iter_count + 1);									ofs << endl;
+		ofs << setw(4) << "npartical";			for_Int(i, 0, p.norg_sets)		ofs << setw(4) << p.npartical[i];		ofs << endl;
 		// ofs << setw(4) << "ful_pcl_sch";		ofs << setw(4) << ful_pcl_sch;											ofs << endl;
 		// if(artificial_symm.size() != 0 && artificial_symm != or_deg_idx){
 		// 	ofs << setw(4) << "artificial_symm";for_Int(i, 0, p.norbs) 		ofs << setw(4) << artificial_symm[i];	ofs << endl;

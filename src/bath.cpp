@@ -5,13 +5,13 @@ code developed and maintained by (jmw@ruc.edu.cn, RUC, China) date 2022 - 2024
 #include "bath.h"
 
 Bath::Bath(const MyMpi& mm_i, const Prmtr& prmtr_i) :mm(mm_i), p(prmtr_i), uur(mm.id()),
-	npart(p.nband), nb(npart), ni(npart), info(p.nband, 6, 0.)
+	npart(1), nb(npart), ni(npart), info(p.nband, 6, 0.)
 {
 	{ SLEEP(1); mm.barrier(); }		// make random seed output together
 
 	//set the number of imp sites in per independent parts
 	for_Int(i, 0, npart) {
-		ni[i] = 1;
+		ni[i] = p.nband;
 	}
 
 	//set the number of bath sites in per independent parts
@@ -39,6 +39,16 @@ void Bath::number_bath_fit(const ImGreen& hb_i, const VecInt or_deg)
 	fvb = arr2fvb(v_a);
 	//fix_fvb_symmetry();
 	// if (mm) bth_write_fvb(iter);
+}
+
+
+void Bath::number_bath_fit(const ImGreen& hb_i)
+{
+	VEC<ImGreen> v_hb = generate_hb(hb_i); 				// vec of hyb function
+	Vec<MatReal> v_bs = generate_bs(); 						//! Here set for empty // bath sum rule 
+	Vec<VecReal> v_a(npart);
+	for_Int(i, 0, npart) v_a[i] = number_bath_fit_part(v_hb[i], v_bs[i], i);
+	fvb = arr2fvb(v_a);
 }
 
 VecReal Bath::number_bath_fit_part(const ImGreen& vhb_i, const MatReal& vbs_i, Int idx)
@@ -74,7 +84,8 @@ std::tuple<Real, VecReal, Int> Bath::bath_fit_number_contest(const VecReal& a0, 
 	// const Int ntry_fine = ntry / 4;
 	// Int ntry = 1 * (mm.np() - 1);
 	Int ntry_fine = MAX(16, mm.np() - 1);
-	Int ntry = MAX(12 * ntry_fine, 516);
+	// Int ntry = MAX(12 * ntry_fine, 288);
+	Int ntry = MAX(6 * ntry_fine, 144);
 	//Int ntry = 2 * (mm.np() - 1);
 	//const Int ntry_fine = 24;
 	//const Int ntry = MAX(12 * ntry_fine, 512);
@@ -236,9 +247,10 @@ VecReal Bath::next_initial_fitting_parameters(const VecReal& a0, const Int& ntry
 
 VEC<ImGreen> Bath::generate_hb(const ImGreen& hb) const {
 	VEC<ImGreen> vhb;
-	for_Int(i, 0, hb.norbs) {
+	for_Int(i, 0, npart) {
 		ImGreen vhb_i(ni[i], p);
-		vhb_i = ImGreen(hb, i, i);
+		// vhb_i = ImGreen(hb, i, i);
+		vhb_i = hb;
 		vhb.push_back(vhb_i);
 	}
 	return vhb;
@@ -383,23 +395,49 @@ Vec<Vec<MatReal>> Bath::arr2fvb(const Vec<VecReal>& arr)
 	return fvb_t;
 }
 
-// rely on imp model's frame
+// rely on imp model's frame: This is for the case of orbital diagonal.
 //! Here only suit for the 1 impurity for 1 set now.
+// MatReal Bath::find_hop() const
+// {
+//     MatReal h0(0, 0, 0.);
+//     for_Int(i, 0, p.nband) {
+//         const Int nb_i = p.nI2B[i * 2];
+//         MatReal h0_i(1 + nb_i, 1 + nb_i, 0.);
+// 		VecReal hop(fvb[i][0][0]), ose(fvb[i][1][0]);
+// 		slctsort(ose, hop);
+//         for_Int(j, 0, nb_i) {
+//             h0_i[0][j + 1] 		= hop[j];
+//             h0_i[j + 1][0] 		= hop[j];
+//             h0_i[j + 1][j + 1] 	= ose[j];
+//         }
+//         h0_i.reset(direct_sum(h0_i, h0_i));
+//         h0.reset(direct_sum(h0, h0_i));
+//     }
+//     return h0;
+// }
+
+// rely on imp model's frame: This is for the case of Matrix non-diagonal type.
 MatReal Bath::find_hop() const
 {
     MatReal h0(0, 0, 0.);
-    for_Int(i, 0, p.nband) {
+	if(mm) WRN(NAV1(h0));
+    for_Int(i, 0, npart) {
         const Int nb_i = p.nI2B[i * 2];
-        MatReal h0_i(1 + nb_i, 1 + nb_i, 0.);
-		VecReal hop(fvb[i][0][0]), ose(fvb[i][1][0]);
-		slctsort(ose, hop);
-        for_Int(j, 0, nb_i) {
-            h0_i[0][j + 1] 		= hop[j];
-            h0_i[j + 1][0] 		= hop[j];
-            h0_i[j + 1][j + 1] 	= ose[j];
+        MatReal h0_i(ni[i] + nb_i, ni[i] + nb_i, 0.);
+        MatReal hop(fvb[i][0].tr());
+        VecReal ose(fvb[i][1][0]);
+        if(mm) WRN(NAV2(hop, ose));    
+        slctsort(ose, hop);
+        for_Int(k, 0, ni[i]) {
+            for_Int(j, 0, nb_i) {
+                h0_i[k][j + ni[i]]         = hop[j][k];
+                h0_i[j + ni[i]][k]         = hop[j][k];
+                h0_i[j + ni[i]][j + ni[i]] = ose[j];
+            }
         }
         h0_i.reset(direct_sum(h0_i, h0_i));
         h0.reset(direct_sum(h0, h0_i));
     }
+	// if(mm) WRN(NAV1(h0));
     return h0;
 }

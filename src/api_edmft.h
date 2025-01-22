@@ -20,10 +20,10 @@ class APIedmft{
 	const MyMpi& mm;					// parameters
 	Prmtr& p;							// parameters
 	Int num_orbital;					// The number of orbiatals.
-	Int num_nondegenerate;				// The number of nondegenerate orbiatal.
 	Real num_omg;						// Number of positive imaginary frequencies used for bath fitting.
 	MatCmplx imfrq_hybrid_function;		// Imaginary frequencies hybrid function, nrows():number of nondegenerate orbiatal.
-	VecInt or_deg_idx;					// orbitals  degenerate idx.
+	// VecInt or_deg_idx;					// orbitals degenerate idx in orbital diagonal model.
+	MatReal energy_level;				// orbitals energy level in orbital matrix model.
 	VecReal solver_eimp_data;			// Impurity energy level for orbitals, correspondingly mean Impurity energy.
 	// ctqmcdata solver_ctqmc_data;
 	Real Uc, Jz, mu;
@@ -31,6 +31,7 @@ class APIedmft{
 	Int norbs;
 	Int ful_pcl_sch;
 	Int iter_count;
+	Int if_mat_type;
 	// VecInt artificial_symm;
 
 	

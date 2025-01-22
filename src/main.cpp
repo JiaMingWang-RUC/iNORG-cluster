@@ -14,7 +14,7 @@ int main(int argc, char* argv[])
 	using namespace std;
 	MPI_Init(&argc, &argv);
 	MyMpi mm;
-	if (mm) cout << "\n\nVersion: v1.9.14.p3@2024.12.03\
+	if (mm) cout << "\n\nVersion: v2.0.01.p4@2025.01.23\
 (running "<< present() <<")\n\n" << endl;
 	if (mm) cout << NAV(pwd()) << endl; 
 	use_mkl(mm);
@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
 
 	// APIzen norg(mm, prmtr, "solver");
 	APIedmft norg(mm, prmtr, "solver");
-	if(mm) WRN(NAV(prmtr.control_divs));
+	// if(mm) WRN(NAV(prmtr.control_divs));
 	// DMFT dmft(mm, prmtr, 1);
 	
     if (mm)	TIME_END("program", t_program_bgn);

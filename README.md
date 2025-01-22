@@ -19,3 +19,6 @@ recent big up data:
 
 Version: v2.0.00.p3 @ 2025.01.02
     realized: The cluster version for the edmft.
+
+Version: v2.0.00.p2 @ 2025.01.23
+    realized: Implemented the first cluster DMFT solver calculation.

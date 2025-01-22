@@ -27,8 +27,8 @@ private:
 	const Int ns;				// number of sites,ns=ni+nb
 	const Int nb;				// number of bath sites
 	MatReal h0;					// hopping factors
-	VecReal pos_imp;			// position of imp site
-	VecReal imp_lvl;			// impurity energy level
+	VecInt pos_imp;				// position of imp site
+	VecReal imp_lvl;			// impurity energy level matrix
 public:
 	Impdata impH;				// The impurity H construction data
 	VecInt ordeg;				// order of degeneracy
@@ -44,10 +44,13 @@ private:
 	//---------------------------------------------------------------------------------------------------------------------------------------
 	//---------------------------------------special for the hhd function(arXiv:2209.14178v1)------------------------------------------------
 	VecReal set_edmft_interaction();
+	VecReal set_mat_edmft_interaction();
 	//---------------------------------------------------------------------------------------------------------------------------------------
 public:
 	Impurity(const MyMpi& mm_i, const Prmtr& prmtr_i, const Bath& bth_i, const Str& file = empty_str);
 	Impurity(const MyMpi& mm_i, const Prmtr& prmtr_i, const Bath& bth_i, const VecInt or_deg);
+	Impurity(const MyMpi& mm_i, const Prmtr& prmtr_i, const Bath& bth_i, const MatReal energy_level);
+	
 	void find_g0(Green& g0) const;
 	void find_all_g0(Green& g0) const;
 	

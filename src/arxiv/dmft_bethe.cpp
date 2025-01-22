@@ -262,7 +262,7 @@ void DMFT::auto_nooc(Str mode, const Impurity& imp) {
 			for_Int(j, 0, o) 							if(occweight[orb_rep][j] < 1e-8) freze_o++;
 			for_Int(j, nppso[orb_rep], p.nI2B[orb_rep])	if(occweight[orb_rep][j] < 1e-8) freze_e++;
 			nooc_o = o - freze_o; nooc_e = e - freze_e;
-			controler[i+1] = p.if_norg_imp ?  VecInt{freze_o, nooc_o, 1, 1, nooc_e, freze_e } : VecInt{1, freze_o, nooc_o, 1, nooc_e, freze_e };
+			controler[i+1] = p.if_norg_imp ?  VecInt{freze_o, nooc_o, p.nband, p.nband, nooc_e, freze_e } : VecInt{p.nband, freze_o, nooc_o, p.nband, nooc_e, freze_e };
 		}
 		// if(mm) WRN(NAV(controler));
 		// p.if_norg_imp = true; p.after_modify_prmtr(); 

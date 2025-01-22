@@ -14,7 +14,7 @@ Occler::Occler(const MyMpi& mm_i, Prmtr& prmtr_i):
 
 
 // ! tested.
-NORG Occler::find_ground_state_partical(const Impdata &impH_i, const VecInt& or_deg)
+NORG Occler::find_ground_state_partical(const Impdata &impH_i, const VecInt or_deg)
 {
     Int counter_norg(0);
     std::map<std::string, Real> sub_energy_data;
@@ -135,7 +135,12 @@ VecInt Occler::find_gs_nppso(const Impdata &impH_i, const VecInt& or_deg)
 // bool Occler::if_ground_state(VecReal sub_energy) {
 // }
 
-VEC<VecInt> Occler::list_all_posible_nppsos(const VecInt& nppso_i, const VecInt& or_deg) const {
+VEC<VecInt> Occler::list_all_posible_nppsos(const VecInt& nppso_i,  VecInt or_deg) const {
+    if(or_deg.size() == 0) {
+        Int half = tp.norg_sets / 2;
+        or_deg.reset(tp.norg_sets);
+        for_Int(i, 0, tp.norg_sets) or_deg[i] = (i % half) + 1;
+    }
     if(nppso_i.size() != or_deg.size()) ERR("The or_deg's number should same as the nppso.")
 	VEC<Int> idx(MAX(or_deg),0); Int cter(0);
     if(mm) WRN(NAV(nppso_i)); // temporary@2024-11-28

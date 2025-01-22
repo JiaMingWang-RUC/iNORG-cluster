@@ -38,6 +38,8 @@ public:
 	void write_zen(const Str& green_name, Int nspin=2, Int iter_cnt=999) const;
 	void write_zen(const Str& green_name, const Str& rowname, Int nspin=2, Int iter_cnt=999) const;
 	inline void reset(Idx n);
+	void read_edmft_matrix(const Str& file);
+	void write_edmft_matrix(const Str& file) const;
 };
 
 class ImGreen : public Green {

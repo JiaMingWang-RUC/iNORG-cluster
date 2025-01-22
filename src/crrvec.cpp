@@ -7,7 +7,7 @@ using namespace std;
 
 
 Crrvec::Crrvec(const NocSpace& old_nosp_i, const Operator& main_opr, const VecReal& vgs_i, const Real& gs, const Int right_set_i, const Real omeg, const Real eta_i)
-    :mm(main_opr.mm),p(main_opr.p), sep_h(main_opr.find_hmlt(main_opr.table)),
+    :mm(main_opr.mm),p(main_opr.p), sep_h(main_opr.find_hmlt_V2(main_opr.table)),
     ground_state(vgs_i), right_set(right_set_i), right_pos_in_div(0), opr(main_opr),
     old_nosp(old_nosp_i), new_nosp(main_opr.scsp), crtorann(main_opr.scsp.nspa - old_nosp_i.nspa), omega(omeg), eta(eta_i), correct_green(1,cmplx(0.)),
     ex_state(project_uplwer_parical_space(vgs_i, crtorann, right_set_i)), ground_state_energy(gs), correct_vector(ex_state.size(), 0.)
@@ -23,7 +23,7 @@ Crrvec::Crrvec(const NocSpace& old_nosp_i, const Operator& main_opr, const VecRe
 }
 
 Crrvec::Crrvec(const NocSpace &old_nosp_i, const Operator& main_opr, const VecReal &vgs_i, const Real &gs, const Int right_set_i, const VecReal &omega_point)
-    :mm(main_opr.mm),p(main_opr.p), sep_h(main_opr.find_hmlt(main_opr.table)),
+    :mm(main_opr.mm),p(main_opr.p), sep_h(main_opr.find_hmlt_V2(main_opr.table)),
     ground_state(vgs_i), right_set(right_set_i), right_pos_in_div(0), opr(main_opr),
     old_nosp(old_nosp_i), new_nosp(main_opr.scsp), crtorann(main_opr.scsp.nspa - old_nosp.nspa), omega(0), eta(0), correct_green(omega_point.size(), cmplx(0.)),
     ex_state(project_uplwer_parical_space(vgs_i, crtorann, right_set_i)), ground_state_energy(gs)
@@ -35,7 +35,7 @@ Crrvec::Crrvec(const NocSpace &old_nosp_i, const Operator& main_opr, const VecRe
 }
 
 Crrvec::Crrvec(const NocSpace &old_nosp_i, const Operator& main_opr, const VecReal &vgs_i, const Real &gs, const Int right_set_i, const VecCmplx &omega_point)
-    :mm(main_opr.mm),p(main_opr.p), sep_h(main_opr.find_hmlt(main_opr.table)),
+    :mm(main_opr.mm),p(main_opr.p), sep_h(main_opr.find_hmlt_V2(main_opr.table)),
     ground_state(vgs_i), right_set(right_set_i), right_pos_in_div(0), opr(main_opr),
     old_nosp(old_nosp_i), new_nosp(main_opr.scsp), crtorann(main_opr.scsp.nspa - old_nosp.nspa), omega(0), eta(0), correct_green(omega_point.size(), cmplx(0.)),
     ex_state(project_uplwer_parical_space(vgs_i, crtorann, right_set_i)), ground_state_energy(gs)
@@ -49,7 +49,7 @@ Crrvec::Crrvec(const NocSpace &old_nosp_i, const Operator& main_opr, const VecRe
 }
 
 Crrvec::Crrvec(const NocSpace &old_nosp_i, const Operator& main_opr, const Int right_set_i, const Int right_pos_in_div_i, const VecReal &vgs_i, const Real &gs)
-    :mm(main_opr.mm),p(main_opr.p), sep_h(main_opr.find_hmlt(main_opr.table)), opr(main_opr),
+    :mm(main_opr.mm),p(main_opr.p), sep_h(main_opr.find_hmlt_V2(main_opr.table)), opr(main_opr),
     ground_state(vgs_i), right_set(right_set_i), right_pos_in_div(right_pos_in_div_i),
     old_nosp(old_nosp_i), new_nosp(main_opr.scsp), crtorann(main_opr.scsp.nspa - old_nosp.nspa), omega(0), eta(0.01),
     ex_state(project_uplwer_parical_space(vgs_i, crtorann, right_set_i, right_pos_in_div_i)), ground_state_energy(gs)
@@ -58,16 +58,24 @@ Crrvec::Crrvec(const NocSpace &old_nosp_i, const Operator& main_opr, const Int r
 }
 
 Crrvec::Crrvec(const NocSpace &old_nosp_i, Operator& main_opr, const VecReal &vgs_i, const Real &gs, Green& mat_green, const Int set_position)
-    :mm(main_opr.mm),p(main_opr.p), sep_h(main_opr.find_hmlt(main_opr.table)),
+    :mm(main_opr.mm),p(main_opr.p), sep_h(main_opr.find_hmlt_V2(main_opr.table)),
     ground_state(vgs_i), right_set(-1), right_pos_in_div(-1), opr(main_opr),
     old_nosp(old_nosp_i), new_nosp(main_opr.scsp), crtorann(main_opr.scsp.nspa - old_nosp.nspa), omega(0), eta(0.01),
     ground_state_energy(gs)
 {
-    main_opr.clear();
-    if(crtorann == +1) mat_green.g += krylov_space_for_green_matrix(mat_green);
+    // main_opr.clear();
+    // if(crtorann == +1) mat_green.g += krylov_space_for_green_matrix(mat_green);
+    // else if(crtorann == -1) {
+    //     Vec<MatCmplx> temp_mat = krylov_space_for_green_matrix(mat_green);
+    //     for_Int(i, 0, mat_green.g.size()) mat_green.g[i] += temp_mat[i].tr(); //?
+    // }
+    if(crtorann == +1){ //? Whether this Green's function needs to be conjugate transposed??
+        Vec<MatCmplx> temp_mat = krylov_space_for_green_matrix(mat_green);
+        for_Int(i, 0, mat_green.g.size()) mat_green.g[i] += temp_mat[i].tr();
+    }
     else if(crtorann == -1) {
         Vec<MatCmplx> temp_mat = krylov_space_for_green_matrix(mat_green);
-        for_Int(i, 0, mat_green.g.size()) mat_green.g[i] += temp_mat[i].tr(); //?
+        for_Int(i, 0, mat_green.g.size()) mat_green.g[i] += temp_mat[i].tr().tr(); //?
     }
 }
 
@@ -94,10 +102,12 @@ ImGreen Crrvec::find_gf_from_krylov_space() {
 	    // VecReal test_b(sep_h * test_a);
 	    // WRN("TEST_Lanczos[0] state" + NAV3(test_a.isnormalized(), test_b.avg_abs_elem_diff(eval[0] * test_a)));
     }
-    // const SparseMatReal sep_h = find_hmlt(table);
+    // const SparseMatReal sep_h = find_hmlt_V2(table);
     VecReal v0(ex_state);
     v0.normalize();
-    VecReal v0_saved(v0), v1(sep_h * v0);
+    VEC<VecReal> v0_saved;  // local variable for storing basis vectors
+    v0_saved.push_back(v0);
+    VecReal v1(sep_h * v0);
     Real a_i(0.), b_i(0.);
     a_i = DOT(v1, v0);
     ltd.push_back(a_i); inner_m.push_back(DOT(v0, ex_state));
@@ -147,10 +157,12 @@ void Crrvec::prepare_Krylov_space() {
     VEC<Real> lt_sd;	    // sub-diagonal elements
     VEC<Real> inner_m;	    // for the inner product of Krylov basis and ex_state.
 
-    // const SparseMatReal sep_h = find_hmlt(table);
+    // const SparseMatReal sep_h = find_hmlt_V2(table);
     VecReal v0(ex_state);
     v0.normalize();
-    VecReal v0_saved(v0), v1(sep_h * v0);
+    VEC<VecReal> v0_saved;  // local variable for storing basis vectors
+    v0_saved.push_back(v0);
+    VecReal v1(sep_h * v0);
     Real a_i(0.), b_i(0.);
     a_i = DOT(v1, v0);
     ltd.push_back(a_i); inner_m.push_back(DOT(v0, ex_state));
@@ -172,7 +184,9 @@ void Crrvec::krylov_update_state(VecCmplx omega_vec){
     {
         VecReal v0(ex_state);
         v0.normalize();
-        VecReal v0_saved(v0), v1(sep_h * v0);
+        VEC<VecReal> v0_saved;  // local variable for storing basis vectors
+        v0_saved.push_back(v0);
+        VecReal v1(sep_h * v0);
         Real a_i(0.), b_i(0.);
         a_i = DOT(v1, v0);
         ltd.push_back(a_i); inner_m_i.push_back(DOT(v0, ex_state));
@@ -183,7 +197,9 @@ void Crrvec::krylov_update_state(VecCmplx omega_vec){
     }
     VecReal va(ltd), vb(lt_sd), m(inner_m_i), v0(ex_state);
     v0.normalize();
-    VecReal v0_saved(v0), v1(sep_h * v0);
+    VEC<VecReal> v0_saved;  // local variable for storing basis vectors
+    v0_saved.push_back(v0);
+    VecReal v1(sep_h * v0);
     MatReal S(va.size(), va.size(), 0.);
     Int info = trd_heevr_vd(va, vb, S);
     if (info != 0)ERR("the i-th parameter had an illegal value." + NAV3(info, va, vb));
@@ -222,7 +238,9 @@ VecCmplx Crrvec::krylov_space_for_green(Int left_set, Int left_pos_in_div, const
     {
         VecReal v0(ex_state);
         v0.normalize();
-        VecReal v0_saved(v0), v1(sep_h * v0);
+        VEC<VecReal> v0_saved;  // local variable for storing basis vectors
+        v0_saved.push_back(v0);
+        VecReal v1(sep_h * v0);
         Real a_i(0.), b_i(0.);
         a_i = DOT(v1, v0);
         ltd.push_back(a_i); inner_m_i.push_back(DOT(v0, ex_state)); inner_n_i.push_back(DOT(left_vec, v0));
@@ -263,8 +281,8 @@ Vec<MatCmplx> Crrvec::krylov_space_for_green_matrix(const Green& mat_green){
     Vec<VEC<Real>> lt_sd(mat_diago_length);                         // sub-diagonal elements
     Vec<VEC<Real>> inner_m(mat_diago_length);                       // for the inner product of Krylov basis and ex_state.
     Mat<VEC<Real>> inner_n(mat_diago_length, mat_diago_length);     // for the inner product of Krylov basis and ex_state.
-    Int krylov_length = 200;                                        // The dim of Krylov space.
-    VEC<VecReal> ex_state_temp_sets_p;                              //save the ex_state parallelly
+    Int krylov_length = 500;                                        // The dim of Krylov space.
+    VEC<VecReal> ex_state_temp_sets_p;                              // save the ex_state parallelly
     for_Int(i, 0, mat_diago_length) ex_state_temp_sets_p.push_back(project_uplwer_parical_space(ground_state, crtorann, 0, i));
 
     for_Int(r, 0, mat_diago_length){
@@ -274,7 +292,9 @@ Vec<MatCmplx> Crrvec::krylov_space_for_green_matrix(const Green& mat_green){
         
         VecReal v0(ex_state_temp_sets_p[r]);
         v0 *= INV(SQRT(mm.Allreduce(DOT(v0, v0))));
-        VecReal v0_saved(v0), v1(sep_h * v0);
+        VEC<VecReal> v0_saved;  // local variable for storing basis vectors
+        v0_saved.push_back(v0);
+        VecReal v1(sep_h * v0);
         Real a_i(0.), b_i(0.);
         a_i = mm.Allreduce(DOT(v1, v0));
         ltd_i.push_back(a_i);
@@ -417,12 +437,18 @@ VecCmplx Crrvec::find_correct_vec()
     return (cmplx(real_v, imag_v));
 }
 
-void Crrvec::find_trdgnl_one_step(const VecReal& initial_vector, VecReal& v0, VecReal& v1, Real& a, Real& b, const SparseMatReal& sep_h) {
+void Crrvec::find_trdgnl_one_step(VEC<VecReal>& initial_vector, VecReal& v0, VecReal& v1, Real& a, Real& b, const SparseMatReal& sep_h) {
     v1 -= a * v0;
     b = SQRT(mm.Allreduce(DOT(v1, v1)));
-    v1 -= mm.Allreduce(DOT(v1, initial_vector)) * initial_vector;
+    
+    // Orthogonalize against all basis vectors
+    for_Int(i, 0, initial_vector.size() - 1) {
+        v1 -= mm.Allreduce(DOT(v1, initial_vector[i])) * initial_vector[i];
+    }
+    
     v1 *= INV(SQRT(mm.Allreduce(DOT(v1, v1))));
     SWAP(v0, v1);
+    initial_vector.push_back(v0);  // Add the new v0 to the basis vectors
     v1 *= -b;
     v1 += sep_h * v0;
     a = mm.Allreduce(DOT(v1, v0));

@@ -47,7 +47,7 @@ private:
 	SparseMatReal add_diagonal_sparse_matrix(VEC<VecInt> h_idx, Real ge0, Real omega);
 
 	// Using the Lanczos to mapping H to the tridiagonal matrix(step by step).
-	void find_trdgnl_one_step(const VecReal& initial_vector, VecReal& v0, VecReal& v1, Real& a, Real& b, const SparseMatReal& sep_h);
+	void find_trdgnl_one_step(VEC<VecReal>& initial_vector, VecReal& v0, VecReal& v1, Real& a, Real& b, const SparseMatReal& sep_h);
 
 	// Using the tridiagonal Krylov space matirx to find each excition state.
 	void find_excted_state_by_ab(const VecReal& initial_vector, VecReal& v0, VecReal& v1, VecReal& vec_a, VecReal& vec_b, Int& k, const SparseMatReal& sep_h);

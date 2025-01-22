@@ -99,7 +99,7 @@ Tab Operator::find_fullH_idx()
 				}
 			}
 		}
-		//! off-Diagonal term. C\power-index{i|†}C\index{j}|| C\power-index{i|†}C\power-index{j|†}C\power-index{k}C\index{l}
+		//! off-Diagonal term. $c_i^\dagger c_j$ || $c_i^\dagger c_j^\dagger c_k c_l$
 		for_Int(sets_i, 0, p.norg_sets) {
 			{
 				// off_diagonal_term Two-Fermi

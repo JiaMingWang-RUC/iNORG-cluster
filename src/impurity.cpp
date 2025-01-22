@@ -30,17 +30,30 @@ Impurity::Impurity(const MyMpi &mm_i, const Prmtr &prmtr_i, const Bath &bth_i, c
     for_Int(i, 0, ni) imp_lvl[i] = deg_lvl[ordeg[i] - 1];
 }
 
+Impurity::Impurity(const MyMpi &mm_i, const Prmtr &prmtr_i, const Bath &bth_i, const MatReal energy_level): mm(mm_i), p(prmtr_i), bth(bth_i),
+    nb(p.nbath), ni(p.norbs), ns(p.norbit), pos_imp(p.norbs),
+    h0(p.norbit, p.norbit, 0.), imp_lvl(p.norbs * p.norbs, 0.)
+{
+    MatReal h0_loc_temp(ni, ni, 0.);
+    h0_loc_temp = energy_level;
+    for_Int(i, 0, ni) h0_loc_temp[i][i] = h0_loc_temp[i][i] - p.mu;
+    imp_lvl = h0_loc_temp.vec();
+}
+
 using namespace std;
 
 // rely on imp model's frame
 void Impurity::find_g0(Green &g0) const {
 
     MatCmplx Z(ns, ns);
+    // if(mm) WRN(NAV(h0));
     for_Int(n, 0, g0.nomgs) {
         Z = g0.z(n);
         MatCmplx g0_z = matinvlu(Z - cmplx(h0));
         for_Int(i, 0, p.nband) {
-            g0[n][i][i] = g0_z[pos_imp[2 * i]][pos_imp[2 * i]];
+            for_Int(j, 0, p.nband) {
+                g0[n][i][j] = g0_z[pos_imp[i]][pos_imp[j]];
+            }
         }
     }
 }
@@ -60,18 +73,21 @@ void Impurity::find_all_g0(Green &g0) const {
 
 //rely on imp model's frame
 void Impurity::find_hb(Green &hb) const {
-    VEC<VecReal> vec_hop,vec_ose;
-    for_Int(i, 0, p.nband) {
-        vec_hop.push_back(bth.fvb[i][0][0]);
-        vec_ose.push_back(bth.fvb[i][1][0]);
-    }
-    for_Int(i,0,p.nband){
-        const Int nb_i = p.nI2B[2*i];
+    // VEC<VecReal> vec_hop,vec_ose;
+    // for_Int(i, 0, p.nband) {
+    //     vec_hop.push_back(bth.fvb[i][0][0]);
+    //     vec_ose.push_back(bth.fvb[i][1][0]);
+    // }
+    
+    // if(mm) WRN(NAV2(bth.fvb[0][0],bth.fvb[0][1]));
+    for_Int(i,0,bth.npart){
+        MatCmplx V = cmplx(bth.fvb[i][0]);  
+        // if(mm) WRN(NAV2(cmplx(bth.fvb[i][0]),cmplx(bth.fvb[i][1])));
         for_Int(n,0,hb.nomgs){
-            const VecCmplx Z(nb_i, hb.z(n));
-            VecCmplx S = INV(Z - cmplx(vec_ose[i]));
-            VecCmplx V = cmplx(vec_hop[i]);
-            hb[n][i][i] = SUM(V * S * V.co());
+            const MatCmplx Z = dmat(bth.fvb[i][1][0].size(), hb.z(n));
+            MatCmplx S = matinvlu(Z - cmplx(dmat(bth.fvb[i][1][0])));
+            // if(mm) WRN(NAV2(Z,S));
+            hb[n] = V * S * V.ct();
         }
     }
 }
@@ -122,24 +138,6 @@ void Impurity::find_hb(Green& hb) const {
 */
 
 
-MatReal Impurity::find_hop_for_test() const
-{
-    VecReal hop({ -0.312546, 0.159346, -0.0619612, -0.312546, 0.159346 });
-    VecReal ose({ -0.474855,0.0667285, 0,           0.474855, -0.0667285 });
-    MatReal h0(0, 0, 0.);
-    for_Int(i, 0, p.nband) {
-        const Int nb_i = p.nI2B[i * 2];
-        MatReal h0_i(1 + nb_i, 1 + nb_i, 0.);
-        for_Int(j, 0, nb_i) {
-            h0_i[0][j + 1] = hop[j];
-            h0_i[j + 1][0] = hop[j];
-            h0_i[j + 1][j + 1] = ose[j];
-        }
-        h0_i.reset(direct_sum(h0_i, h0_i));
-        h0.reset(direct_sum(h0, h0_i));
-    }
-    return h0;
-}
 
 void Impurity::update(Str mode) {
     if (mode.empty()) {
@@ -147,10 +145,13 @@ void Impurity::update(Str mode) {
         impH = std::make_pair(h0, set_interaction());
         // modify_Impdata_for_half_fill(impH);
     }
+    else if (mode == "mateDMFT") {
+        set_factor();
+        impH = std::make_pair(h0, set_mat_edmft_interaction());
+    }
     else if (mode == "eDMFT") {
         set_factor();
         impH = std::make_pair(h0, set_edmft_interaction());
-        // modify_Impdata_for_half_fill(impH);
     }
     else if (mode == "behte") {
         for_Int(i, 0, ni) imp_lvl[i] = p.eimp[i] - p.mu;
@@ -177,20 +178,20 @@ void Impurity::write_H0info(const Bath &b, Int ndeg, Int iter_cnt) const {
     if(ndeg > 0) for_Int(i, 0, ndeg) {
         ofs << "deg-band "<< i+1  <<  " nbath: "<< b.nb[i] <<  " nmin: " << b.info[i][0] << " err: " << b.info[i][1] 
             << " err_crv: " << b.info[i][2] << " err_hight_ev: " << b.info[i][3] 
-            << " err_regE: " << b.info[i][4] <<" norm: " << b.info[i][5]<< "  " << endl;
+            << " err_regE: " << b.info[i][4] <<" norm: " << b.info[i][5]<< "  " << endl << endl;
     }
-    else for_Int(i, 0, p.nband) {
+    else for_Int(i, 0, b.npart) {
         ofs << "band "<< i+1  << "nmin: " << b.info[i][0] << " err: " << b.info[i][1] 
             << " err_crv: " << b.info[i][2] << " err_hight_ev: " << b.info[i][3] 
-            << " err_regE: " << b.info[i][4] <<" norm: " << b.info[i][5]<< "  " << endl;
+            << " err_regE: " << b.info[i][4] <<" norm: " << b.info[i][5]<< "  " << endl << endl;
     }
 
     // Calculate correct matrix positions
     Int pos = 0;
-    for_Int(i, 0, p.nband) {
-        ofs << "band "<< i+1 << endl;
+    for_Int(i, 0, b.npart) {
+        ofs << "band "<< i+1<< ":" ;
         Int begin = pos;
-        Int size = 2 * (p.nI2B[2*i] + 1);  // Size for this band
+        Int size = 2 * (p.nI2B[2*i] + b.ni[i]);  // Size for this band
         Int end = begin + size;
         ofs << iofmt() << h0.truncate(begin, begin, end, end) << endl;
         pos += size;  // Update position for next band
@@ -203,18 +204,18 @@ void Impurity::write_H0info(const Bath &b, Int ndeg, Int iter_cnt) const {
 void Impurity::set_factor() {
     // set hyb part and bath part
     h0 = bth.find_hop();
-    
-    // // h0 = find_hop_for_test();
-    // set imp part
+
+    // inset the local part of imp_h0 part
     MatReal h0loc(ni,ni,0.);
-    for_Int(i, 0, ni) h0loc[i][i] = imp_lvl[i];
-    
-    // find i_th imp in which site
-    Int site = 0;
+    MatReal h0loc_i(imp_lvl.mat(ni/2,ni/2));
+    h0loc = direct_sum(h0loc_i, h0loc_i);
+    if(mm) WRN(NAV1(h0loc));
+
+    // Set positions for both up and down spin in one loop
     for_Int(i, 0, ni) {
-        pos_imp[i] = site;
-        site += p.nI2B[i] + 1;
+        pos_imp[i] = i < ni/2 ? i : i + p.nI2B[0];
     }
+    if(mm) WRN(NAV1(pos_imp));
 
     // set h0loc
     for_Int(i, 0, ni) {
@@ -222,6 +223,7 @@ void Impurity::set_factor() {
             h0[pos_imp[i]][pos_imp[j]] = h0loc[i][j];
         }
     }
+    if(mm) WRN(NAV1(h0));
 }
 
 // four-fermion operator terms for C^+_i C^+_j C_k C_l; 
@@ -474,6 +476,143 @@ VecReal Impurity::set_edmft_interaction() {
             interaction[SUM_0toX(p.nO2sets, N_i) * std::pow(n, 3) + SUM_0toX(p.nO2sets, N_j) * std::pow(n, 2) + SUM_0toX(p.nO2sets, N_j) * std::pow(n, 1) + SUM_0toX(p.nO2sets, N_i)] = imp_dd_interact[N_i][N_j];
 
     }
+    
+    return interaction;
+}
+
+// four-fermion operator terms for C^+_i C^+_j C_k C_l; 
+// C^+_i C^+_j C_k C_l h_inter from [i][l][j][k] to [alpha][eta][beta][gamma]
+// See SM of Physical Review B 102.16 (2020): 161118, for equation S1-S9.
+VecReal Impurity::set_mat_edmft_interaction() {
+    // #---------------- # Independent components are --------------
+    //                  'z^2' 'x^2-y^2' 'xz' 'yz' 'xy' 
+    Int n = p.norbit;
+    VecReal interaction(std::pow(n, 4), 0.);
+    if (!(p.nband == 5 || p.nband == 3 || p.nband == 2)) ERR("we only support for the eg, t2g and fulld mode");
+    // Mat<MatReal> imp_interact(p.norbs, p.norbs, MatReal(p.norbs, p.norbs, 0.));
+    MatReal imp_dd_interact(p.norbs, p.norbs,  0.);
+    Real Uc(0.0), Jz(0.0), Up(0.0);
+
+    if(p.nband == 5){
+        MatReal U_interact(p.nband, p.nband,  0.);
+        MatReal J_interact(p.nband, p.nband,  0.);
+        VecReal S_val(9,0.0);
+
+        // See SM of Physical Review B 102.16 (2020): 161118, for equation S1-S9.
+        S_val[0] = p.U + (8.0/7.0) * p.jz;      // S1
+        S_val[1] = p.U - (328.0/819.0) * p.jz;  // S2~S6
+        S_val[2] = p.U + (48.0/819.0) * p.jz;   // S3~S8
+        S_val[3] = p.U - (516.0/819.0) * p.jz;  // S4~S7
+        S_val[4] = p.U + (236.0/819.0) * p.jz;  // S5~S9
+        S_val[5] = (632.0/819.0) * p.jz;        // S6
+        S_val[6] = (726.0/819.0) * p.jz;        // S7
+        S_val[7] = (444.0/819.0) * p.jz;        // S8
+        S_val[8] = (350.0/819.0) * p.jz;        // S9
+
+        for_Int(b1, 0, p.nband) {
+            // S1
+            U_interact[b1][b1] = p.U + (8/7.0) * p.jz;
+            J_interact[b1][b1] = 0.0;
+            for_Int(b2, 0, p.nband) if (b1 != b2) {
+                U_interact[b1][b2] = S_val[1];//S2
+                J_interact[b1][b2] = S_val[5];//S6
+                if ((b1 == 0 && (b2 == 1 || b2 == 4)) || \
+                    (b2 == 0 && (b1 == 1 || b1 == 4))) {
+                    U_interact[b1][b2] = S_val[3];//S4
+                    J_interact[b1][b2] = S_val[6];//S7
+                }
+
+                if ((b1 == 0 && (b2 == 2 || b2 == 3)) || \
+                    (b2 == 0 && (b1 == 2 || b1 == 3))) {
+                    U_interact[b1][b2] = S_val[2];//S3
+                    J_interact[b1][b2] = S_val[7];//S8
+                }
+
+                if ((b1 == 1 && b2 == 4) || \
+                    (b2 == 1 && b1 == 4)) {
+                    U_interact[b1][b2] = S_val[4];//S5
+                    J_interact[b1][b2] = S_val[8];//S9
+                }
+            }
+        }
+
+        if(mm) WRN(NAV2(U_interact, J_interact));
+
+        for_Int(b1, 0, p.nband) {  // NO double counting term for impurity
+            // Same orbital, different spin (U term)
+            imp_dd_interact[b1][b1 + p.nband] = U_interact[b1][b1];
+            
+            for_Int(b2, b1+1, p.nband) {  // Different orbital, same spin (Up-Jz term)
+                // Up spin block
+                imp_dd_interact[b1][b2] = U_interact[b1][b2] - J_interact[b1][b2];
+                // Down spin block 
+                imp_dd_interact[b1 + p.nband][b2 + p.nband] = U_interact[b1][b2] - J_interact[b1][b2];
+            }
+
+            for_Int(b2, 0, p.nband) if (b1 != b2) {  // Different orbital, different spin (Up term)
+                imp_dd_interact[b1][b2 + p.nband] = U_interact[b1][b2];
+            }
+        }
+
+    }
+    else if (p.nband == 3) {
+        Uc = p.U + (8.0 / 7.0) * p.jz;      // S1
+        Up = p.U - (328.0 / 819.0) * p.jz;  // S2
+        Jz = (632.0 / 819.0) * p.jz;        // S6
+
+        for_Int(b1, 0, p.nband) {  // NO double counting term for impurity
+            // Same orbital, different spin (U term)
+            imp_dd_interact[b1][b1 + p.nband] = Uc;
+            
+            for_Int(b2, b1+1, p.nband) {  // Different orbital, same spin (Up-Jz term)
+                // Up spin block
+                imp_dd_interact[b1][b2] = Up - Jz;
+                // Down spin block 
+                imp_dd_interact[b1 + p.nband][b2 + p.nband] = Up - Jz;
+            }
+            
+            for_Int(b2, 0, p.nband) if (b1 != b2) {  // Different orbital, different spin (Up term)
+                imp_dd_interact[b1][b2 + p.nband] = Up;
+            }
+        }
+    }
+    else if (p.nband == 2) {
+        // See SM of Physical Review B 102.16 (2020): 161118, for equation S1-S9.
+        Uc = p.U + (8.0 / 7.0) * p.jz;      // S1
+        Up = p.U - (516.0 / 819.0) * p.jz;  // S4
+        Jz = (726.0 / 819.0) * p.jz;        // S7
+
+        for_Int(b1, 0, p.nband) {  // NO double counting term for impurity
+            // Same orbital, different spin (U term)
+            imp_dd_interact[b1][b1 + p.nband] = Uc;
+            
+            for_Int(b2, b1+1, p.nband) {  // Different orbital, same spin (Up-Jz term)
+                // Up spin block
+                imp_dd_interact[b1][b2] = Up - Jz;
+                // Down spin block 
+                imp_dd_interact[b1 + p.nband][b2 + p.nband] = Up - Jz;
+            }
+            
+            for_Int(b2, 0, p.nband) if (b1 != b2) {  // Different orbital, different spin (Up term)
+                imp_dd_interact[b1][b2 + p.nband] = Up;
+            }
+        }
+    }
+    else {
+        ERR("Now we only support for the t2g and eg orbital.")
+    }
+
+    // if(mm) WRN(NAV2(imp_dd_interact,pos_imp));
+    //! This code is only used to test the case of two norgsets (blocks), i.e. up and down spins.
+    for_Int(N_i, 0, p.norbs)for_Int(N_j, 0, p.norbs) {
+        if (imp_dd_interact[N_i][N_j] != 0) interaction[pos_imp[N_i]* std::pow(n, 3) + pos_imp[N_j] * std::pow(n, 2) + pos_imp[N_j] * std::pow(n, 1) + pos_imp[N_i]] = imp_dd_interact[N_i][N_j];
+    }
+    if(mm) WRN(NAV2(imp_dd_interact,pos_imp));
+    // for_Int(set_idx, 0, p.nO2sets.size()) {
+    //     for_Int(N_i, 0, p.norbs)for_Int(N_j, 0, p.norbs) {
+    //         interaction[SUM_0toX(p.nO2sets, set_idx) * std::pow(n, 3) + SUM_0toX(p.nO2sets, N_j) * std::pow(n, 2) + SUM_0toX(p.nO2sets, N_j) * std::pow(n, 1) + SUM_0toX(p.nO2sets, N_i)] = imp_dd_interact[N_i][N_j];
+    //     }
+    // }
     
     return interaction;
 }

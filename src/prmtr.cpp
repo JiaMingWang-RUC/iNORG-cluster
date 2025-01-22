@@ -29,7 +29,8 @@ void Prmtr::set_inert_values()
     freq_upp = 5.;
     freq_low = -5.;
 
-    beta = pi_Real*50;
+    // beta = pi_Real*50;
+    beta = 200;
     unit_omg = pi_Real/beta;
     nmesh = 8193;
     // unit_omg = 0.01;
@@ -130,10 +131,9 @@ void Prmtr::after_modify_prmtr(const VecInt& nbaths) const
     control_divs.reset(norg_sets + 1, ndiv, 0);
     control_divs[0] = templet_restrain;
     for_Int(i, 0, norg_sets) {
-        Int temp_baths_orbitals = nbaths[i];
-        control_divs[i + 1] = VecInt{1,  int(temp_baths_orbitals/2),  0,  0,  1,  0,  0,  int((temp_baths_orbitals-1)/2)};
+        Int temp_baths_orbitals = nbaths[i] - nband;
+        control_divs[i + 1] = VecInt{nband,  int(temp_baths_orbitals/2),  0,  0,  nband,  0,  0,  int((temp_baths_orbitals)/2)};
     }
-
 
     MatInt sit_mat(control_divs.truncate_row(1,norg_sets + 1));
     for_Int(i, 0, norg_sets) nI2B[i] = SUM(sit_mat[i]) - sit_mat[i][0];
@@ -186,17 +186,24 @@ void Prmtr::according_nppso(const VecInt& nppsos) const
                 - SUM(control_divs[i + 1].truncate(2, Int(ndiv / 2)));
             control_divs[i + 1][ndiv - 1] = (nO2sets[i] - nppsos[i])\
                 - (control_divs[i + 1][0] + control_divs[i + 1][ndiv / 2]) / 2. - SUM(control_divs[i + 1].truncate(Int(ndiv / 2) + 1, ndiv - 1));
+            Int & left_side = control_divs[i + 1][1], & right_side = control_divs[i + 1][ndiv - 1];
 
-            for_Int(j, 1, ndiv / 2.) {
-                if (control_divs[i + 1][j] < 0) {
-                    int t = -control_divs[i + 1][j]; control_divs[i + 1][ndiv - j] += t;
-                    control_divs[i + 1][j + 1] -= t; control_divs[i + 1][j] = 0;
-                }
-                if (control_divs[i + 1][ndiv - j] < 0) {
-                    int t = -control_divs[i + 1][ndiv - j]; control_divs[i + 1][j] += t;
-                    control_divs[i + 1][ndiv - j - 1] -= t; control_divs[i + 1][ndiv - j] = 0;
-                }
+            if (right_side < 0) {
+                Int gap = 0 - right_side;
+                left_side -= gap;
+                right_side += gap;
+                // WRN(NAV1(control_divs));
             }
+            // for_Int(j, 1, ndiv / 2.) {
+            //     if (control_divs[i + 1][j] < 0) {
+            //         int t = -control_divs[i + 1][j]; control_divs[i + 1][ndiv - j] += t;
+            //         control_divs[i + 1][j + 1] -= t; control_divs[i + 1][j] = 0;
+            //     }
+            //     if (control_divs[i + 1][ndiv - j] < 0) {
+            //         int t = -control_divs[i + 1][ndiv - j]; control_divs[i + 1][j] += t;
+            //         control_divs[i + 1][ndiv - j - 1] -= t; control_divs[i + 1][ndiv - j] = 0;
+            //     }
+            // }
         }
     }
 }
