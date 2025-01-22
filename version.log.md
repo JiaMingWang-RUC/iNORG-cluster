@@ -546,7 +546,7 @@ Version: v1.9.14.p3 @ 2024.12.16
     next do : (same as prev)
     thinking: (same as prev)
 
-Version: v2.0.00.p2 @ 2025.01.23
+Version: v2.0.01.p4 @ 2025.01.23
     realized: Implemented the first cluster DMFT solver calculation.
     noting  : Implemented the NORG impurity fitting and computation for matrix Green's functions, while simultaneously comparing with the non-interacting Green's function G_0.
     next do : Embed into eDMFT iteration for calculation
