@@ -70,6 +70,7 @@ VEC<MatReal> DensityMat::find_unitary_orbital_rotation_matrix()
 		// if (mm) WRN(NAV3(dm[0], dm[1], dm[2]));
 		// for_Int(spin, 0, 2) rotaionU_bath[0 + spin] = rotaionU_bath[2 + spin] = 0.5 * (rotaionU_bath[0 + spin] + rotaionU_bath[2 + spin]); //! set band 0 same as band 1.
 		// for_Int(i, 0, p.nband) rotaionU_bath[i*2] = rotaionU_bath[i*2 + 1] = 0.5 * (rotaionU_bath[i*2] + rotaionU_bath[i*2 + 1]); //! using the spin inversion symmetry(suit for SC).
+		for_Int(i, 0, p.norg_sets/2) rotaionU_bath[i*2] = rotaionU_bath[i*2 + 1] = 0.5 * (rotaionU_bath[i*2] + rotaionU_bath[i*2 + 1]); //! using the spin inversion symmetry for matrix type.
 
 		VEC<VecReal> evalue;
 		for_Int(i, 0, p.norg_sets) {
