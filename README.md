@@ -22,3 +22,6 @@ Version: v2.0.00.p3 @ 2025.01.02
 
 Version: v2.0.01.p4 @ 2025.01.23
     realized: Implemented the first cluster DMFT solver calculation.
+
+Version: v2.0.02.p4 @ 2025.03.18
+    realized: Changed the Lanczos calculation logic to orthogonalize with the remaining basis at each step.

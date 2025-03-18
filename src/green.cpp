@@ -262,6 +262,12 @@ void Green::read_edmft_matrix(const Str& file) {
     if (!ifs) {
         WRN(STR("file opening failed with ") + NAV(file));
     } else {
+        // Skip comment lines at the beginning
+        Str line;
+        while (ifs.peek() == '#') {
+            std::getline(ifs, line);
+        }
+        
         for_Int(n, 0, nomgs) {
             Real omg;
             MatReal re(norbs, norbs, 0.);
@@ -269,6 +275,11 @@ void Green::read_edmft_matrix(const Str& file) {
 
             // 1) Read frequency point
             ifs >> omg;
+            
+            // Skip comment lines
+            while (ifs.peek() == '#') {
+                std::getline(ifs, line);
+            }
 
             // 2) Read all matrix elements row by row
             for_Int(i, 0, norbs) {
@@ -277,6 +288,11 @@ void Green::read_edmft_matrix(const Str& file) {
                     ifs >> re_val >> im_val;
                     re[i][j] = re_val;
                     im[i][j] = im_val;
+                    
+                    // Skip comment lines
+                    while (ifs.peek() == '#') {
+                        std::getline(ifs, line);
+                    }
                 }
             }
 

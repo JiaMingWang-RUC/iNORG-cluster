@@ -29,8 +29,8 @@ APIedmft::APIedmft(const MyMpi& mm_i, Prmtr& prmtr_i, const Str& file) : mm(mm_i
 	auto_nooc("ful_pcl_sch", imp);	
 	if(mm) WRN(NAV(p.control_divs));
 	NORG norg(mm, p);
-	if (!norg.check_NTR()) norg.uormat = p.rotationU;
-	else MatReal tmp_b = norg.read_NTR();
+	// if (!norg.check_NTR()) norg.uormat = p.rotationU;
+	// else MatReal tmp_b = norg.read_NTR();
 	norg.up_date_h0_to_solve(imp.impH, 1);															n_eles = norg.write_impurtiy_occupation();
 	// MatReal tmp_e = norg.save_NTR();
 	// MatReal local_multiplets_state = norg.oneedm.local_multiplets_state(norg.oneedm.ground_state);	if (mm)WRN(NAV(local_multiplets_state));
@@ -38,7 +38,7 @@ APIedmft::APIedmft(const MyMpi& mm_i, Prmtr& prmtr_i, const Str& file) : mm(mm_i
 	ImGreen g0imp(p.nband, p);	imp.find_g0(g0imp);													if (mm)	g0imp.write_edmft_matrix("g0imp.txt");
 	ImGreen gfimp(p.nband, p);	norg.get_g_by_KCV_spup(gfimp);										if (mm) gfimp.write_edmft_matrix("Gf.out");
 	ImGreen seimp(p.nband, p);	seimp = g0imp.inverse() - gfimp.inverse();
-	fit_err = bth.info.tr()[1];
+	fit_err.reset(bth.info.tr()[1]);
 	{ mm.barrier(); SLEEP(1); }
 	if (mm) {
 		ImGreen last_sig(p.nband, p); 		last_sig.read_edmft_matrix("Sig.out");				sig_err = seimp.error(last_sig);
@@ -220,7 +220,7 @@ void APIedmft::update(const Str& file) {
 		p.recalc_partical_number(); p.derive();
 		if(mm) WRN(NAV(p.control_divs));
 		// p.Uprm = p.U - 2 * p.jz;
-		p.degel = 0;
+		p.degel = 1;
 		n_eles.reset(norbs, 0); fit_err.reset(nband, 0);
 		// if (mm) p.print();
 	}
@@ -246,7 +246,8 @@ bool APIedmft::if_lock(const Str file) const {
 void APIedmft::print_log(const Str& lbl, std::ostream& os) const {
     using namespace std;
     Str temp; 
-    for_Int(i, 0, p.nband) { 
+    // for_Int(i, 0, p.nband) { 
+    for_Int(i, 0, p.norg_sets) { // ! special for the matrix mode
         if (i == 0) temp += STR(p.npartical[i * 2]); 
         else temp += "-" + STR(p.npartical[i * 2]); 
     }
@@ -256,13 +257,17 @@ void APIedmft::print_log(const Str& lbl, std::ostream& os) const {
     // os << setw(8) << p.U;
     os << iofmt("sci");
     os << "  " << setw(w_Real) << sig_err;
-    os << setw(3 + 2 * p.nband) << temp;
-    
+    os << setw(3 + 2 * p.norg_sets) << temp;
+
     os << iofmt() << fixed << setprecision(8);
-    // for_Int(i, 0, p.nband) {
-    //     os << "  " << setw(15) << fit_err[or_deg_idx[i * 2] - 1] << "~" << setw(10) << n_eles[i * 2];
-    // }
-    
+    for_Int(i, 0, fit_err.size()) {
+        os << "  " << setw(15) << fit_err[i];
+    }
+    os << iofmt() << fixed << setprecision(8) << "   ~ ";
+    for_Int(i, 0, n_eles.size()) {
+        os << "  " << setw(10) << n_eles[i];
+    }
+
     os << "  " << present();
     os << "  " << lbl << endl;
 }

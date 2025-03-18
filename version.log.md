@@ -550,3 +550,8 @@ Version: v2.0.01.p4 @ 2025.01.23
     realized: Implemented the first cluster DMFT solver calculation.
     noting  : Implemented the NORG impurity fitting and computation for matrix Green's functions, while simultaneously comparing with the non-interacting Green's function G_0.
     next do : Embed into eDMFT iteration for calculation
+
+Version: v2.0.01.p4 @ 2025.01.23
+    realized: Changed the Lanczos calculation logic to orthogonalize with the remaining basis at each step.
+    noting  : 
+    next do : test in 3 orbital cases.

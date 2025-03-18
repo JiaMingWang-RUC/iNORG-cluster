@@ -279,8 +279,8 @@ Vec<MatCmplx> Crrvec::krylov_space_for_green_matrix(const Green& mat_green){
     VecCmplx omega_vec = mat_green.z_omg;
     Vec<VEC<Real>> ltd(mat_diago_length);                           // diagonal elements
     Vec<VEC<Real>> lt_sd(mat_diago_length);                         // sub-diagonal elements
-    Vec<VEC<Real>> inner_m(mat_diago_length);                       // for the inner product of Krylov basis and ex_state.
-    Mat<VEC<Real>> inner_n(mat_diago_length, mat_diago_length);     // for the inner product of Krylov basis and ex_state.
+    Vec<VEC<Real>> inner_m(mat_diago_length);                       // the Krylov subspace representation of the Right state in Each row
+    Mat<VEC<Real>> inner_n(mat_diago_length, mat_diago_length);     // the Krylov subspace representation of the Left state  in Each row and column
     Int krylov_length = 500;                                        // The dim of Krylov space.
     VEC<VecReal> ex_state_temp_sets_p;                              // save the ex_state parallelly
     for_Int(i, 0, mat_diago_length) ex_state_temp_sets_p.push_back(project_uplwer_parical_space(ground_state, crtorann, 0, i));
@@ -288,7 +288,7 @@ Vec<MatCmplx> Crrvec::krylov_space_for_green_matrix(const Green& mat_green){
     for_Int(r, 0, mat_diago_length){
         VEC<Real> ltd_i;        // diagonal elements
         VEC<Real> lt_sd_i;      // sub-diagonal elements
-        VEC<Real> inner_m_i;    // for the inner product of Krylov basis and ex_state.
+        VEC<Real> inner_m_i;    // the Krylov subspace representation of the Right state for this row
         
         VecReal v0(ex_state_temp_sets_p[r]);
         v0 *= INV(SQRT(mm.Allreduce(DOT(v0, v0))));
