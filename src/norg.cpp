@@ -225,15 +225,19 @@ void NORG::get_g_by_KCV(Green& imp_i)
 
 void NORG::get_g_by_KCV_spup(Green& imp_i)
 {
-	StdVecInt difference = {1, -1};
-	for(const auto ii: difference)
-	{
-		NocSpace scsp_1(mm, p, nppso(p.npartical, ii));
-		Operator opr_sub(mm, p, scsp_1);
-		// scsp_1.coefficient = set_row_primeter_byimpH(uormat, impH);
-		set_row_primeter_byimpH(uormat, impH, opr_sub.oper_value);
-		Crrvec greaer(scsp, opr_sub, final_ground_state[0], groune_lst, imp_i);
+	for_Int(egs_idx, 0, p.degel){
+		if(mm) std::cout << "deg_idx: " << egs_idx << std::endl;
+		StdVecInt difference = {1, -1};
+		for(const auto ii: difference)
+		{
+			NocSpace scsp_1(mm, p, nppso(p.npartical, ii));
+			Operator opr_sub(mm, p, scsp_1);
+			// scsp_1.coefficient = set_row_primeter_byimpH(uormat, impH);
+			set_row_primeter_byimpH(uormat, impH, opr_sub.oper_value);
+			Crrvec greaer(scsp, opr_sub, final_ground_state[egs_idx], groune_lst, imp_i);
+		}
 	}
+	for_Int(i, 0, imp_i.g.size()) imp_i.g[i] *= 1.0/double(p.degel);
 	if(mm) std::cout << present() << std::endl;
 }
 

@@ -162,7 +162,7 @@ VecInt lanczos(VecReal& evals, Mat<T>& evecs, Int& gs_dgcy, Idx n, Int evals_siz
         if (fast_mode) break;
         if (e == evals_size) {// verify if finding all the degeneracy
             Int ndeg = 1;
-            for_Int(i, 1, eval.size()) if (compare_error(eval[0], eval[i]) < 2E-6) ndeg++;
+            for_Int(i, 1, eval.size()) if (compare_error(eval[0], eval[i]) < 2E-5) ndeg++;
             if (evals_size == ndeg) evals_size++;
         }
     }
@@ -171,7 +171,7 @@ VecInt lanczos(VecReal& evals, Mat<T>& evecs, Int& gs_dgcy, Idx n, Int evals_siz
     evals.reset(eval);
 
     slctsort(evals, evecs);
-    for_Int(i, 1, evals.size()) if(compare_error(evals[0], evals[i]) < 1E-6) gs_dgcy++;
+    for_Int(i, 1, evals.size()) if(compare_error(evals[0], evals[i]) < 1E-5) gs_dgcy++;
     // if(mm) WRN(NAV(evals))    
     VecInt krylov_size(Krylovsize);
     return krylov_size;

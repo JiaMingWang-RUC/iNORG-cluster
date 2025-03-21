@@ -248,8 +248,8 @@ void APIedmft::print_log(const Str& lbl, std::ostream& os) const {
     Str temp; 
     // for_Int(i, 0, p.nband) { 
     for_Int(i, 0, p.norg_sets) { // ! special for the matrix mode
-        if (i == 0) temp += STR(p.npartical[i * 2]); 
-        else temp += "-" + STR(p.npartical[i * 2]); 
+        if (i == 0) temp += STR(p.npartical[i]); 
+        else temp += "-" + STR(p.npartical[i]); 
     }
 
     os << iofmt();
@@ -305,7 +305,7 @@ void APIedmft::auto_nooc(Str mode, const Impurity& imp) {
 			// p_temp.nooc_mode = STR("nooc"); // ! abandoned on 2024-05-24
 			// p_temp.nooc_mode = STR("phss_v2");
 			p_temp.nooc_mode = STR("cnooc");
-			p_temp.templet_restrain[1] = -1; p_temp.templet_restrain[p_temp.ndiv - 1] = 1;
+			// p_temp.templet_restrain[1] = -1; p_temp.templet_restrain[p_temp.ndiv - 1] = 1;
 			p_temp.according_nppso(p_temp.npartical);
 
 			NORG norg(mm, p_temp);	norg.read_NTR(); 	norg.up_date_h0_to_solve(imp.impH, 1);
